@@ -1,4 +1,4 @@
-const API = 'https://secure-k56z.onrender.com';
+const API = 'https://marki.onrender.com/';
 
 // ------- Tabs -------
 document.querySelectorAll('.tab').forEach(btn=>{
@@ -234,3 +234,4 @@ function showResult(kind, html){
   resultBox.className = `result ${kind==='ok'?'ok':kind==='warn'?'warn':'bad'}`;
   resultBox.innerHTML = html;
 }
+
