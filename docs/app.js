@@ -1,6 +1,6 @@
-const API = 'https://marki.onrender.com/';
+// БАЗА API: той самий домен, з якого відкрито сторінку
+const API = window.location.origin;
 
-// ------- Tabs -------
 document.querySelectorAll('.tab').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
@@ -10,35 +10,32 @@ document.querySelectorAll('.tab').forEach(btn=>{
   });
 });
 
-// ------- UI helpers -------
-function badge(state){
-  const color =
-    state==='created'   ? 'background:#122a5a;border-color:#3a57b0' :
-    state==='purchased' ? 'background:#4b3f12;border-color:#c9a227' :
-    state==='claimed'   ? 'background:#104525;border-color:#2ecc71' :
-                          'background:#4b1223;border-color:#e24d6b';
-  return `<span class="badge" style="${color}">${state}</span>`;
-}
+// helpers
 function $(sel){ return document.querySelector(sel) }
 function el(tag, attrs = {}, children = []) {
   const e = document.createElement(tag);
   Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v));
-
   const append = (child) => {
     if (child == null || child === false) return;
-    if (Array.isArray(child)) { child.forEach(append); return; }   // <-- ВАЖНО
+    if (Array.isArray(child)) { child.forEach(append); return; }
     if (typeof child === 'string') { e.appendChild(document.createTextNode(child)); return; }
     e.appendChild(child);
   };
-
   append(children);
   return e;
 }
+function showResult(kind, html){
+  const box = $('#resultBox');
+  box.className = `result ${kind==='ok'?'ok':kind==='warn'?'warn':'bad'}`;
+  box.innerHTML = html;
+}
 
-// ------- Manufacturer: create product -------
+// Manufacturer: create
 const createForm = $('#createForm');
 const createdBlock = $('#createdBlock');
-const labelQR = new QRCode(document.getElementById('labelQR'), {text:'', width:180, height:180});
+const labelQR  = new QRCode(document.getElementById('labelQR'),  {text:'', width:180, height:180});
+const publicQR = new QRCode(document.getElementById('publicQR'), {text:'', width:180, height:180});
+
 createForm.addEventListener('submit', async (e)=>{
   e.preventDefault();
   const data = Object.fromEntries(new FormData(createForm).entries());
@@ -49,14 +46,22 @@ createForm.addEventListener('submit', async (e)=>{
     });
     const p = await res.json();
     if(!res.ok) throw new Error(p.error || 'Create failed');
-    // show created
+
     createdBlock.classList.remove('hidden');
     $('#createdId').textContent = p.id;
     $('#createdState').textContent = p.state;
     $('#createdIpfs').textContent = p.ipfsHash;
+
+    // JSON QR (службовий)
     labelQR.clear();
     labelQR.makeCode(JSON.stringify(p.qrPayload));
-    // refresh list/select
+
+    // Public URL QR (для смартфона)
+    const url = p.publicUrl || `${API}/details.html?id=${p.id}`;
+    $('#createdUrl').textContent = url;
+    publicQR.clear();
+    publicQR.makeCode(url);
+
     await loadProducts();
     createForm.reset();
   }catch(err){
@@ -64,7 +69,7 @@ createForm.addEventListener('submit', async (e)=>{
   }
 });
 
-// ------- Products table & actions -------
+// Products table & actions
 const tbody = $('#productsBody');
 const productSelect = $('#productSelect');
 const issueBtn = $('#issueBtn');
@@ -72,7 +77,7 @@ const issueBtn = $('#issueBtn');
 async function loadProducts(){
   const res = await fetch(`${API}/api/products`);
   const list = await res.json();
-  // table
+
   tbody.innerHTML = '';
   if(!list.length){
     tbody.innerHTML = `<tr><td colspan="5" class="muted">Ще немає продуктів</td></tr>`;
@@ -100,7 +105,6 @@ async function loadProducts(){
       tbody.appendChild(tr);
     });
   }
-  // select
   productSelect.innerHTML = '<option value="">— Оберіть продукт —</option>';
   list.forEach(p=>{
     const opt = el('option',{value:p.id}, `${p.id} — ${p.meta.name} [${p.state}]`);
@@ -118,12 +122,9 @@ async function markPurchased(id){
     await loadProducts();
   }catch(e){ alert(e.message) }
 }
+productSelect.addEventListener('change', ()=>{ issueBtn.disabled = !productSelect.value; });
 
-productSelect.addEventListener('change', ()=>{
-  issueBtn.disabled = !productSelect.value;
-});
-
-// ------- Issue claim -------
+// Issue claim
 const ticketBlock = $('#ticketBlock');
 const ticketQR = new QRCode(document.getElementById('ticketQR'), {text:'', width:180, height:180});
 
@@ -147,18 +148,14 @@ async function issueTicket(id){
     await loadProducts();
   }catch(e){ alert(e.message) }
 }
-issueBtn.addEventListener('click', ()=>{
-  if(!productSelect.value) return;
-  issueTicket(productSelect.value);
-});
+issueBtn.addEventListener('click', ()=>{ if(productSelect.value) issueTicket(productSelect.value); });
 
-// ------- User: scan & verify -------
+// User: scan & verify
 const openCam = $('#openCam');
 const stopCam = $('#stopCam');
 const readerBox = $('#reader');
 const payloadText = $('#payloadText');
 const checkBtn = $('#checkBtn');
-const resultBox = $('#resultBox');
 
 let scanner = null;
 openCam.addEventListener('click', async ()=>{
@@ -180,12 +177,9 @@ openCam.addEventListener('click', async ()=>{
     resetCameraUI();
   }
 });
-
 stopCam.addEventListener('click', stopCamera);
 function stopCamera(){
-  if(scanner){
-    scanner.stop().catch(()=>{}); scanner.clear(); scanner=null;
-  }
+  if(scanner){ scanner.stop().catch(()=>{}); scanner.clear(); scanner=null; }
   resetCameraUI();
 }
 function resetCameraUI(){
@@ -199,20 +193,24 @@ async function verifyPayload(raw){
   try{
     const payload = JSON.parse(raw);
     if(payload.t==='prod'){
-      // Онлайн перевірка стану для демонстрації
       const res = await fetch(`${API}/api/verify/${payload.id}`);
       const j = await res.json();
       if(!res.ok) throw new Error(j.error || 'Verify failed');
+
       const msg =
         j.state==='claimed'   ? 'Справжній (у вас)' :
         j.state==='purchased' ? 'Придбано (можливо не ваше)' :
         j.state==='created'   ? 'Створено, але не придбано' : 'Невідомо';
+
+      const detailsLink = `<a href="${API}/details.html?id=${encodeURIComponent(j.tokenId)}" target="_blank" rel="noopener">Відкрити деталі</a>`;
       showResult('ok', [
         `<b>${msg}</b>`,
         `<div class="mono">TokenId: ${j.tokenId}</div>`,
         `<div>Назва: ${j.metadata.name}</div>`,
-        `<div class="mono">Серійний: ${j.metadata.serial}</div>`
+        `<div class="mono">Серійний: ${j.metadata.serial}</div>`,
+        `<div style="margin-top:6px">${detailsLink}</div>`
       ].join('<br>'));
+
     } else if(payload.t==='claim'){
       const res = await fetch(`${API}/api/claim/redeem`,{
         method:'POST', headers:{'Content-Type':'application/json'},
@@ -229,9 +227,3 @@ async function verifyPayload(raw){
     showResult('bad', 'Помилка: ' + e.message);
   }
 }
-
-function showResult(kind, html){
-  resultBox.className = `result ${kind==='ok'?'ok':kind==='warn'?'warn':'bad'}`;
-  resultBox.innerHTML = html;
-}
-
