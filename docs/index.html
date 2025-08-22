@@ -36,11 +36,11 @@
             <form id="createForm" class="form">
               <div class="field">
                 <label>Серійний номер*</label>
-                <input name="serial" placeholder="ACMEX-2025-000123" required />
+                <input name="serial" placeholder="MILK-2025-000001" required />
               </div>
               <div class="field">
                 <label>Назва*</label>
-                <input name="name" placeholder="Acme Sneaker X" required />
+                <input name="name" placeholder="Organic Milk 1L" required />
               </div>
               <div class="row">
                 <div class="field">
@@ -48,17 +48,17 @@
                   <input name="date" type="date" />
                 </div>
                 <div class="field">
-                  <label>URL зображення</label>
-                  <input name="image" placeholder="https://..." />
+                  <label>URL зображення (необов'язково)</label>
+                  <input name="image" placeholder="" />
                 </div>
               </div>
               <div class="field">
                 <label>Сертифікати (через кому)</label>
-                <input name="certificates" placeholder="ISO9001, CE-123" />
+                <input name="certificates" placeholder="ISO22000, HACCP" />
               </div>
 
               <div class="actions">
-                <button class="btn primary">Створити NFT (mock)</button>
+                <button class="btn primary">Створити (QR без URL)</button>
                 <button type="reset" class="btn ghost">Очистити</button>
               </div>
             </form>
@@ -68,12 +68,17 @@
               <div class="created-body">
                 <div class="qrbox">
                   <div id="labelQR"></div>
-                  <span>Label QR</span>
+                  <span>JSON QR (службовий)</span>
+                </div>
+                <div class="qrbox">
+                  <div id="publicQR"></div>
+                  <span>Public URL QR (для покупця)</span>
                 </div>
                 <div class="meta">
                   <div><b>TokenId:</b> <span id="createdId"></span></div>
                   <div><b>Стан:</b> <span class="badge" id="createdState"></span></div>
                   <div class="mono"><b>IPFS (mock):</b> <span id="createdIpfs"></span></div>
+                  <div class="mono"><b>Публічне посилання:</b> <span id="createdUrl"></span></div>
                 </div>
               </div>
             </div>
@@ -160,7 +165,7 @@
       </section>
     </main>
 
-    <footer class="footer">© 2025 MARKI Secure (Demo). Backend: http://localhost:3000</footer>
+    <footer class="footer">© 2025 MARKI Secure (Demo). Backend: same origin</footer>
   </div>
 
   <script src="app.js"></script>
