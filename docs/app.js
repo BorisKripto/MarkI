@@ -1,5 +1,8 @@
 // БАЗА API: той самий домен, з якого відкрито сторінку
-const API = window.location.origin;
+const API =
+  (window.API_BASE) ? window.API_BASE :
+  (location.host.endsWith('github.io') || location.protocol === 'file:') ? 'https://app.markisecure.com/' :
+  location.origin;
 
 document.querySelectorAll('.tab').forEach(btn=>{
   btn.addEventListener('click', ()=>{
@@ -227,3 +230,4 @@ async function verifyPayload(raw){
     showResult('bad', 'Помилка: ' + e.message);
   }
 }
+
