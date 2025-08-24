@@ -148,8 +148,17 @@ func main() {
 		http.Redirect(w, r, "/details.html?id="+id, http.StatusFound)
 	})
 
-	// статика
-	fs := http.FileServer(http.Dir("./public"))
+	// ===== STATIC: serve / from "docs" (fallback to "public"), using absolute path near binary
+	exePath, _ := os.Executable()
+	baseDir := filepath.Dir(exePath)
+
+	staticRoot := filepath.Join(baseDir, "docs")
+	if _, err := os.Stat(staticRoot); err != nil {
+		// fallback for older builds
+		staticRoot = filepath.Join(baseDir, "public")
+	}
+	log.Printf("Serving static from %s", staticRoot)
+	fs := http.FileServer(http.Dir(staticRoot))
 	mux.Handle("/", fs)
 
 	port := os.Getenv("PORT")
@@ -247,9 +256,23 @@ func manufacturerCreateProduct(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:  now,
 		QRPayload:  payload,
 	}
-	if publicBase != "" {
-		p.PublicURL = fmt.Sprintf("%s/details.html?id=%d", publicBase, id)
+
+	// ==== Побудова PublicURL ====
+	scheme := "http"
+	if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
+		scheme = "https"
 	}
+	base := publicBase
+	if base == "" {
+		if r.Host != "" {
+			base = fmt.Sprintf("%s://%s", scheme, r.Host)
+		} else {
+			// дефолт — змінюй під себе або задай PUBLIC_BASE у середовищі
+			base = "http://localhost:3000"
+		}
+	}
+	p.PublicURL = fmt.Sprintf("%s/details.html?id=%d", base, id)
+
 	writeJSON(w, http.StatusCreated, p)
 }
 
@@ -569,7 +592,7 @@ func verifyProduct(w http.ResponseWriter, r *http.Request) {
 // ===== helpers =====
 
 func withCORS(h http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
